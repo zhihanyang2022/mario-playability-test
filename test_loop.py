@@ -1,15 +1,31 @@
+import argparse
 import json
 import pygame
 import numpy as np
 import time
 pygame.init()
 
+parser = argparse.ArgumentParser()
+parser.add_argument("data")
+args = parser.parse_args()
+
+if args.data == 'org':
+    with open('smba_binary_chunks.json', 'r') as json_f:
+        binary_chunks = np.array(json.load(json_f))
+elif args.data == 'vae':
+    pass
+elif args.data.startswith('gmm'):
+    # [  8,  28,  48,  68,  88, 108, 128]
+    _, index = args.data.split('-')
+    with open('gmms_suboptim_binary.json', 'r') as json_f:
+        binary_chunks = np.array(json.load(json_f))[int(index)]
+else:
+    raise argparse.ArgumentTypeError('Model type not recognizable.')
+
 class ChunkGrabber():
 
     def __init__(self, how_many=100, seed=42):
         self.all_possible_rect_configs = self.get_all_possible_rect_configs()
-        with open('smba_binary_chunks.json', 'r') as json_f:
-            binary_chunks = np.array(json.load(json_f))
         np.random.seed(seed)
         np.random.shuffle(binary_chunks)
         self.binary_chunks = binary_chunks[:how_many]
@@ -105,7 +121,7 @@ start = time.time()
 
 while running:
     pygame.time.delay(1000 // frames_per_sec)
-    pygame.display.set_caption(f'Super Mario Bros Binary; Testing Chunk {chunk_testing}')
+    pygame.display.set_caption(f'smb / {args.data} / chunk {chunk_testing}')
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
