@@ -16,6 +16,8 @@ Run agent on 100 (under-fitting) GMM-generated SMB chunks: `python test_loop.py 
 
 Run agent on 100 (best-fitting) GMM-generated SMB chunks: `python test_loop.py gmm-optim`
 
+The playability proportion (the number of chunks passable / the total number of chunks) is printed at the end after the agent has tried traversing all 100 chunks.
+
 ## Pygame Compatibility
 
 My Python version is 3.6.9 and my Pygame vesion is 2.0.0.dev3.
