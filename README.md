@@ -1,3 +1,7 @@
+## Demo
+
+<img src='demo.gif'>
+
 ## Usage
 
 Run agent on 100 original SMB chunks: `python test_loop.py org`
