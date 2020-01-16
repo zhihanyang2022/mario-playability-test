@@ -1,6 +1,6 @@
 ## Demo
 
-<img src='demo.gif'>
+<img src='demo.gif' width=500>
 
 ## Usage
 
