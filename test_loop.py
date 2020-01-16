@@ -5,22 +5,32 @@ import numpy as np
 import time
 pygame.init()
 
+# DEPENDING ON VALUES GIVEN TO THE COMMAND LINE ARGUMENT, DIFFERENT
+# CHUNKS ARE LOADED
+
 parser = argparse.ArgumentParser()
 parser.add_argument("data")
 args = parser.parse_args()
 
+def json2array(json_fpath):
+    with open(json_fpath, 'r') as json_f:
+        return np.array(json.load(json_f))
+
 if args.data == 'org':
-    with open('smba_binary_chunks.json', 'r') as json_f:
-        binary_chunks = np.array(json.load(json_f))
+    binary_chunks = json2array('smb_binary.json')
 elif args.data == 'vae':
-    pass
+    binary_chunks = json2array('gens_binary.json')
+elif args.data == 'gmm-optim':
+    binary_chunks = json2array('gmms_binary.json')
 elif args.data.startswith('gmm'):
-    # [  8,  28,  48,  68,  88, 108, 128]
-    _, index = args.data.split('-')
-    with open('gmms_suboptim_binary.json', 'r') as json_f:
-        binary_chunks = np.array(json.load(json_f))[int(index)]
+    num_components = [  8,  28,  48,  68,  88, 108, 128]
+    _, num_component = args.data.split('-')
+    array_index = num_components.index(int(num_component))
+    binary_chunks = json2array('gmms_suboptim_binary.json')[array_index]
 else:
     raise argparse.ArgumentTypeError('Model type not recognizable.')
+
+# CONVERT 16-BY-16 CHUNKS INTO CONFIGURATIONS OF GAME ELEMENTS
 
 class ChunkGrabber():
 
@@ -28,10 +38,14 @@ class ChunkGrabber():
         self.all_possible_rect_configs = self.get_all_possible_rect_configs()
         np.random.seed(seed)
         np.random.shuffle(binary_chunks)
-        self.binary_chunks = binary_chunks[:how_many]
+        self.binary_chunks = binary_chunks[:how_many]  # we only run the agent on the first 100 chunks for each group of chunks
 
     @staticmethod
     def get_all_possible_rect_configs():
+        """
+        A rectangle has the following configuration: (x, y, width, height).
+        This functions generate configs for all possible non-overlapping rectangles for other methods to use.
+        """
         grid_xs = np.arange(0, 640, 40)
         grid_ys = np.arange(0, 640, 40)
         all_possible_rect_configs = []
@@ -43,9 +57,14 @@ class ChunkGrabber():
         return all_possible_rect_configs
 
     @staticmethod
-    def is_solid(entry): return entry == 1
+    def is_solid(entry):
+        """Test whether an element in a 16-by-16 chunk is unpassable."""
+        return entry == 1
 
     def get_rect_configs_from(self, binary_chunk):
+        """
+        Get the configurations of the rectangles that represent unpassable tiles.
+        """
         rect_configs = []
         for i, row in enumerate(binary_chunk):
             for j, entry in enumerate(row):
@@ -54,6 +73,9 @@ class ChunkGrabber():
         return rect_configs
 
     def get_agent_rect_config_from(self, binary_chunk):
+        """
+        Get the configuration of the rectangle that represents the agent / mario.
+        """
         for col_i in range(16):  # loop through the columns
             solid_indices = np.where(binary_chunk[:,col_i])[0]
             if len(solid_indices) > 0:  # loop through the rows
@@ -64,6 +86,9 @@ class ChunkGrabber():
                         return self.all_possible_rect_configs[col_i][bottom_row_i]
 
     def iter_rect_configs_for_chunks_and_agents(self):
+        """
+        Iterate the pygame configurations for each and every chunk.
+        """
         for bc in self.binary_chunks:
             yield self.get_rect_configs_from(bc), self.get_agent_rect_config_from(bc)
 
@@ -120,25 +145,28 @@ chunk_testing = 1
 start = time.time()
 
 while running:
+
+    # clock
     pygame.time.delay(1000 // frames_per_sec)
     pygame.display.set_caption(f'smb / {args.data} / chunk {chunk_testing}')
 
+    # quit the game once the quit (X) button is pressed
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
     keys = pygame.key.get_pressed()
 
-    # DRAW EVERYTHING
+    # draw everything
     win.fill((0, 0, 0))
     for rect_config in rect_configs:
         pygame.draw.rect(win, (255, 255, 255), rect_config)
     pygame.draw.rect(win, (255, 0, 0), agent_rect_config)
     pygame.display.update()
 
-    # JUMP EFFECT
-    if not is_jump:
-        if keys[pygame.K_UP] or k_jump:
+    # jump effect
+    if not is_jump: # if not jumping
+        if keys[pygame.K_UP] or k_jump: # if the user asked agent to jump OR the agent wants to jump
             is_jump = True
             starting_height = agent_rect_config[1]
             k_jump = False
@@ -147,7 +175,6 @@ while running:
         new_rect_config = agent_rect_config.copy()
         new_rect_config[1] = starting_height - quadratic(jump_t)
         if jump_count >= - num_jumps / 2 - 100 and not is_inside(new_rect_config, rect_configs):
-        # new_rect_config[1] + 40 > win_height:
             agent_rect_config = new_rect_config
             jump_count -= 1
             jump_t += stepsize
@@ -203,7 +230,7 @@ while running:
     at_least_one_condition_is_met = False
     now = time.time()
 
-    if agent_rect_config[1] > win_height or (now - start > 15):
+    if agent_rect_config[1] > win_height or (now - start > 20):
 
         playability_tracker.append(0)
         at_least_one_condition_is_met = True
@@ -249,6 +276,7 @@ while running:
             running = False
 
 print('=============================================')
+print('Chunk Group {}'.format(args.data))
 print('Playability proportion:', round(np.sum(playability_tracker) / len(playability_tracker), 2))
 print('=============================================')
 pygame.quit()
