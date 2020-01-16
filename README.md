@@ -1,3 +1,7 @@
+## Movement Rules
+
+The agent is always moving towards the right. Whenever the agent is stuck (horizontal speed is zero) or approaching a trap, the agent will jump (unless a block is right above the agent).
+
 ## Demo
 
 <img src='demo.gif' width=500>
